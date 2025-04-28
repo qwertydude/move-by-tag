@@ -4,6 +4,7 @@ export interface TagMapping {
   id: string;
   tags: string[];
   folder: string;
+  matchMode?: 'all' | 'any';
 }
 
 export interface MoveByTagSettings {

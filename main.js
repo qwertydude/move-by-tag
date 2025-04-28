@@ -167,7 +167,9 @@ var TagMappingService = class {
           matchedTags.push(mappingTag);
         }
       }
-      if (matchedTags.length === mapping.tags.length) {
+      const matchMode = mapping.matchMode || "all";
+      const isMatch = matchMode === "any" ? matchedTags.length > 0 : matchedTags.length === mapping.tags.length;
+      if (isMatch) {
         matches.push({ mapping, matchedTags });
       }
     }
@@ -187,13 +189,42 @@ var FileUtils = class {
    * Extract tags from file content
    */
   extractTags(content) {
-    const tagRegex = /#([\w-]+)/g;
     const tags = [];
+    const tagRegex = /#([\w-]+)/g;
     let match;
     while ((match = tagRegex.exec(content)) !== null) {
       tags.push(match[1]);
     }
-    return tags;
+    const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---/;
+    const frontmatterMatch = content.match(frontmatterRegex);
+    if (frontmatterMatch && frontmatterMatch[1]) {
+      const frontmatter = frontmatterMatch[1];
+      const tagsMatch = frontmatter.match(/tags:\s*(.*(?:\n\s*-.*)*)/);
+      if (tagsMatch) {
+        const tagsContent = tagsMatch[1].trim();
+        if (tagsContent.startsWith("-")) {
+          const arrayTagRegex = /-\s*([^\n]+)/g;
+          let arrayMatch;
+          while ((arrayMatch = arrayTagRegex.exec(tagsContent)) !== null) {
+            tags.push(arrayMatch[1].trim());
+          }
+        } else if (tagsContent.startsWith("[") && tagsContent.endsWith("]")) {
+          const inlineArray = tagsContent.slice(1, -1).split(",");
+          inlineArray.forEach((tag) => {
+            const trimmedTag = tag.trim();
+            if (trimmedTag)
+              tags.push(trimmedTag);
+          });
+        } else {
+          tagsContent.split(",").forEach((tag) => {
+            const trimmedTag = tag.trim();
+            if (trimmedTag)
+              tags.push(trimmedTag);
+          });
+        }
+      }
+    }
+    return [...new Set(tags)];
   }
   /**
    * Extract tags from a file
@@ -275,6 +306,7 @@ var TagMappingModal = class extends import_obsidian.Modal {
     contentEl.empty();
     let tagsInput;
     let folderInput;
+    let matchModeToggle;
     let initialTags = "";
     if (this.activeFile) {
       try {
@@ -285,7 +317,7 @@ var TagMappingModal = class extends import_obsidian.Modal {
         console.error("Error reading file:", error);
       }
     }
-    new import_obsidian.Setting(contentEl).setName("Tags").setDesc("Enter tags without # symbol, separated by commas. All tags must be present for the rule to apply.").addText((text) => {
+    new import_obsidian.Setting(contentEl).setName("Tags").setDesc("Enter tags without # symbol, separated by commas.").addText((text) => {
       tagsInput = text;
       text.setPlaceholder("tag1, tag2, tag3");
       if (initialTags) {
@@ -293,9 +325,18 @@ var TagMappingModal = class extends import_obsidian.Modal {
       }
     });
     folderInput = this.createFolderInputSetting(contentEl, "folder/subfolder", "Destination Folder");
+    new import_obsidian.Setting(contentEl).setName("Matching Mode").setDesc("Choose how tags should be matched").addToggle((toggle) => {
+      matchModeToggle = toggle;
+      toggle.setValue(true);
+      toggle.setTooltip("Match All Tags");
+      toggle.onChange((value) => {
+        toggle.setTooltip(value ? "Match All Tags" : "Match Any Tag");
+      });
+    });
     new import_obsidian.Setting(contentEl).addButton((button) => button.setButtonText("Cancel").onClick(() => this.close())).addButton((button) => button.setButtonText("Add").setCta().onClick(async () => {
       const tagsValue = tagsInput.getValue().trim();
       const folder = folderInput.getValue().trim();
+      const matchMode = matchModeToggle.getValue() ? "all" : "any";
       if (!tagsValue || !folder) {
         new import_obsidian.Notice("Both tags and folder are required");
         return;
@@ -315,7 +356,8 @@ var TagMappingModal = class extends import_obsidian.Modal {
       const newMapping = {
         id: this.tagMappingService.generateId(),
         tags,
-        folder
+        folder,
+        matchMode
       };
       this.settings.tagMappings.push(newMapping);
       await this.saveSettings();
@@ -332,12 +374,21 @@ var TagMappingModal = class extends import_obsidian.Modal {
     contentEl.empty();
     let tagsInput;
     let folderInput;
-    new import_obsidian.Setting(contentEl).setName("Tags").setDesc("Enter tags without # symbol, separated by commas. All tags must be present for the rule to apply.").addText((text) => {
+    let matchModeToggle;
+    new import_obsidian.Setting(contentEl).setName("Tags").setDesc("Enter tags without # symbol, separated by commas.").addText((text) => {
       tagsInput = text;
       text.setValue(mapping.tags.join(", "));
     });
     folderInput = this.createFolderInputSetting(contentEl, "folder/subfolder", "Destination Folder");
     folderInput.setValue(mapping.folder);
+    new import_obsidian.Setting(contentEl).setName("Matching Mode").setDesc("Choose how tags should be matched").addToggle((toggle) => {
+      matchModeToggle = toggle;
+      toggle.setValue(mapping.matchMode !== "any");
+      toggle.setTooltip(mapping.matchMode !== "any" ? "Match All Tags" : "Match Any Tag");
+      toggle.onChange((value) => {
+        toggle.setTooltip(value ? "Match All Tags" : "Match Any Tag");
+      });
+    });
     new import_obsidian.Setting(contentEl).addButton((button) => button.setButtonText("Cancel").onClick(() => this.close())).addButton((button) => button.setButtonText("Delete").setWarning().onClick(async () => {
       if (await this.showDeleteConfirmation(mapping)) {
         this.settings.tagMappings = this.settings.tagMappings.filter((m) => m.id !== mapping.id);
@@ -347,6 +398,7 @@ var TagMappingModal = class extends import_obsidian.Modal {
     })).addButton((button) => button.setButtonText("Save").setCta().onClick(async () => {
       const tagsValue = tagsInput.getValue().trim();
       const folder = folderInput.getValue().trim();
+      const matchMode = matchModeToggle.getValue() ? "all" : "any";
       if (!tagsValue || !folder) {
         new import_obsidian.Notice("Both tags and folder are required");
         return;
@@ -368,7 +420,8 @@ var TagMappingModal = class extends import_obsidian.Modal {
         this.settings.tagMappings[index] = {
           ...mapping,
           tags,
-          folder
+          folder,
+          matchMode
         };
         await this.saveSettings();
         this.close();
@@ -485,7 +538,8 @@ var MoveByTagSettingTab = class extends import_obsidian2.PluginSettingTab {
     const sortedMappings = [...this.settings.tagMappings].sort((a, b) => a.tags[0].localeCompare(b.tags[0]));
     for (const mapping of sortedMappings) {
       const tagDisplay = mapping.tags.map((t) => "#" + t).join(" + ");
-      new import_obsidian2.Setting(mappingsContainer).setName(tagDisplay).setDesc(`Current destination: ${mapping.folder}`).addButton((button) => button.setButtonText("Edit").onClick(() => {
+      const matchModeDisplay = mapping.matchMode === "any" ? "(Match Any)" : "(Match All)";
+      new import_obsidian2.Setting(mappingsContainer).setName(`${tagDisplay} ${matchModeDisplay}`).setDesc(`Current destination: ${mapping.folder}`).addButton((button) => button.setButtonText("Edit").onClick(() => {
         const modal = new TagMappingModal(
           this.app,
           this.settings,
@@ -1648,6 +1702,9 @@ var MoveByTag = class extends import_obsidian6.Plugin {
     this.settings.tagMappings.forEach((mapping) => {
       if (!mapping.id) {
         mapping.id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+      }
+      if (!mapping.hasOwnProperty("matchMode")) {
+        mapping.matchMode = "all";
       }
     });
   }

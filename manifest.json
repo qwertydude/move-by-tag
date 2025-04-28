@@ -1,7 +1,7 @@
 { 
   "id": "move-by-tag", 
   "name": "Move by Tag", 
-  "version": "0.0.1", 
+  "version": "1.0.7", 
   "description": "Move a file to a new location based on tags", 
   "author": "Chris Howard with Windsurf", 
   "minAppVersion": "0.9.7", 

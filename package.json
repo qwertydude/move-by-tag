@@ -1,6 +1,6 @@
 {
   "name": "move-by-tag",
-  "version": "1.0.6+build.43",
+  "version": "1.0.7+build.43",
   "description": "Move files based on their tags",
   "main": "main.js",
   "id": "move-by-tag",

@@ -22,6 +22,8 @@ This document outlines potential improvements and new features for the "Move by 
 
 3. **Conditional Rules**: Extend rules to support more complex conditions beyond just tags (e.g., file creation date, content type, frontmatter properties).
 
+Add all/any switch
+
 4. **Scheduled Moves**: Allow users to schedule automatic file movements at specific times or intervals.
 
 5. **Move History**: Maintain a history of file movements with the ability to undo recent moves.
@@ -49,6 +51,8 @@ This document outlines potential improvements and new features for the "Move by 
 5. **Export/Import Rules**: Allow users to export and import rule configurations to share between vaults or with other users.
 
 6. **Cascade option**: When moving on current folder, present option to apply move on child folders as well.
+
+7. **Create folder**: Prompt to create folder if doesn't exist when adding rule
 
 ## Documentation and Onboarding
 

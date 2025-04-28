@@ -1,4 +1,4 @@
-import { App, ButtonComponent, Modal, Notice, Setting, TextComponent, TFile } from 'obsidian';
+import { App, ButtonComponent, Modal, Notice, Setting, TextComponent, TFile, ToggleComponent } from 'obsidian';
 import { MoveByTagSettings, TagMapping } from '../models/types';
 import { FolderSuggestions } from './FolderSuggestions';
 import { TagMappingService } from '../services/TagMappingService';
@@ -75,6 +75,7 @@ export class TagMappingModal extends Modal {
     
     let tagsInput: TextComponent;
     let folderInput: TextComponent;
+    let matchModeToggle: ToggleComponent;
     let initialTags = '';
 
     // If we have an active file, pre-populate with its tags
@@ -91,7 +92,7 @@ export class TagMappingModal extends Modal {
     // Tags input
     new Setting(contentEl)
       .setName('Tags')
-      .setDesc('Enter tags without # symbol, separated by commas. All tags must be present for the rule to apply.')
+      .setDesc('Enter tags without # symbol, separated by commas.')
       .addText(text => {
         tagsInput = text;
         text.setPlaceholder('tag1, tag2, tag3');
@@ -102,6 +103,19 @@ export class TagMappingModal extends Modal {
 
     // Folder input for add/edit tag mapping
     folderInput = this.createFolderInputSetting(contentEl, 'folder/subfolder', 'Destination Folder');
+
+    // Match mode toggle
+    new Setting(contentEl)
+      .setName('Matching Mode')
+      .setDesc('Choose how tags should be matched')
+      .addToggle(toggle => {
+        matchModeToggle = toggle;
+        toggle.setValue(true); // Default to 'all'
+        toggle.setTooltip('Match All Tags');
+        toggle.onChange(value => {
+          toggle.setTooltip(value ? 'Match All Tags' : 'Match Any Tag');
+        });
+      });
 
     // If we have an active file, suggest its parent folder
     // if (this.activeFile && this.activeFile.parent) {
@@ -119,6 +133,7 @@ export class TagMappingModal extends Modal {
         .onClick(async () => {
           const tagsValue = tagsInput.getValue().trim();
           const folder = folderInput.getValue().trim();
+          const matchMode = matchModeToggle.getValue() ? 'all' : 'any';
 
           if (!tagsValue || !folder) {
             new Notice('Both tags and folder are required');
@@ -144,7 +159,8 @@ export class TagMappingModal extends Modal {
           const newMapping: TagMapping = {
             id: this.tagMappingService.generateId(),
             tags,
-            folder
+            folder,
+            matchMode
           };
 
           this.settings.tagMappings.push(newMapping);
@@ -166,11 +182,12 @@ export class TagMappingModal extends Modal {
     
     let tagsInput: TextComponent;
     let folderInput: TextComponent;
+    let matchModeToggle: ToggleComponent;
 
     // Tags input
     new Setting(contentEl)
       .setName('Tags')
-      .setDesc('Enter tags without # symbol, separated by commas. All tags must be present for the rule to apply.')
+      .setDesc('Enter tags without # symbol, separated by commas.')
       .addText(text => {
         tagsInput = text;
         text.setValue(mapping.tags.join(', '));
@@ -179,6 +196,20 @@ export class TagMappingModal extends Modal {
     // Folder input with dropdown
     folderInput = this.createFolderInputSetting(contentEl, 'folder/subfolder', 'Destination Folder');
     folderInput.setValue(mapping.folder);
+
+    // Match mode toggle
+    new Setting(contentEl)
+      .setName('Matching Mode')
+      .setDesc('Choose how tags should be matched')
+      .addToggle(toggle => {
+        matchModeToggle = toggle;
+        // Default to 'all' if matchMode not set (for backward compatibility)
+        toggle.setValue(mapping.matchMode !== 'any');
+        toggle.setTooltip(mapping.matchMode !== 'any' ? 'Match All Tags' : 'Match Any Tag');
+        toggle.onChange(value => {
+          toggle.setTooltip(value ? 'Match All Tags' : 'Match Any Tag');
+        });
+      });
 
     // Buttons
     new Setting(contentEl)
@@ -202,6 +233,7 @@ export class TagMappingModal extends Modal {
         .onClick(async () => {
           const tagsValue = tagsInput.getValue().trim();
           const folder = folderInput.getValue().trim();
+          const matchMode = matchModeToggle.getValue() ? 'all' : 'any';
 
           if (!tagsValue || !folder) {
             new Notice('Both tags and folder are required');
@@ -231,7 +263,8 @@ export class TagMappingModal extends Modal {
             this.settings.tagMappings[index] = {
               ...mapping,
               tags,
-              folder
+              folder,
+              matchMode
             };
             await this.saveSettings();
             this.close();

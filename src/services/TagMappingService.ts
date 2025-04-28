@@ -44,8 +44,15 @@ export class TagMappingService {
         }
       }
 
-      // If all tags in the mapping were found, it's a match
-      if (matchedTags.length === mapping.tags.length) {
+      // Determine match mode (default to 'all' for backward compatibility)
+      const matchMode = mapping.matchMode || 'all';
+      
+      // Check if we have a match based on the match mode
+      const isMatch = matchMode === 'any' 
+        ? matchedTags.length > 0  // For 'any' mode, at least one tag must match
+        : matchedTags.length === mapping.tags.length; // For 'all' mode, all tags must match
+      
+      if (isMatch) {
         matches.push({ mapping, matchedTags });
       }
     }

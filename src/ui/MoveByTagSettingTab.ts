@@ -136,9 +136,10 @@ export class MoveByTagSettingTab extends PluginSettingTab {
 
     for (const mapping of sortedMappings) {
       const tagDisplay = mapping.tags.map(t => '#' + t).join(' + ');
+      const matchModeDisplay = mapping.matchMode === 'any' ? '(Match Any)' : '(Match All)';
 
       new Setting(mappingsContainer)
-        .setName(tagDisplay)
+        .setName(`${tagDisplay} ${matchModeDisplay}`)
         .setDesc(`Current destination: ${mapping.folder}`)
         .addButton(button => button
           .setButtonText('Edit')

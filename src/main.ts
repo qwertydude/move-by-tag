@@ -53,6 +53,11 @@ export default class MoveByTag extends Plugin {
       if (!mapping.id) {
         mapping.id = Date.now().toString(36) + Math.random().toString(36).substr(2);
       }
+      
+      // Ensure all mappings have matchMode (for backward compatibility)
+      if (!mapping.hasOwnProperty('matchMode')) {
+        mapping.matchMode = 'all'; // Default to 'all' for backward compatibility
+      }
     });
   }
 

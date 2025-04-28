@@ -43,6 +43,13 @@
         "docs"
       ],
       "folder": "Writing"
+    },
+    {
+      "id": "m9qybm6v1w5yp4zecc1",
+      "tags": [
+        "intelligence"
+      ],
+      "folder": "/LIBRARY/Humans"
     }
   ],
   "excludedFolders": [],
@@ -50,5 +57,5 @@
     "/Inbox"
   ],
   "confirmBeforeMove": false,
-  "enableLogging": false
+  "enableLogging": true
 }

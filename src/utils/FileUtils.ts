@@ -7,13 +7,53 @@ export class FileUtils {
    * Extract tags from file content
    */
   public extractTags(content: string): string[] {
-    const tagRegex = /#([\w-]+)/g;
     const tags = [];
+    
+    // Extract inline hashtags
+    const tagRegex = /#([\w-]+)/g;
     let match;
     while ((match = tagRegex.exec(content)) !== null) {
       tags.push(match[1]);
     }
-    return tags;
+    
+    // Extract frontmatter tags
+    const frontmatterRegex = /^---\s*\n([\s\S]*?)\n---/;
+    const frontmatterMatch = content.match(frontmatterRegex);
+    
+    if (frontmatterMatch && frontmatterMatch[1]) {
+      const frontmatter = frontmatterMatch[1];
+      // Look for tags field in frontmatter
+      const tagsMatch = frontmatter.match(/tags:\s*(.*(?:\n\s*-.*)*)/);
+      
+      if (tagsMatch) {
+        const tagsContent = tagsMatch[1].trim();
+        
+        if (tagsContent.startsWith('-')) {
+          // Array format: tags:\n  - tag1\n  - tag2
+          const arrayTagRegex = /-\s*([^\n]+)/g;
+          let arrayMatch;
+          while ((arrayMatch = arrayTagRegex.exec(tagsContent)) !== null) {
+            tags.push(arrayMatch[1].trim());
+          }
+        } else if (tagsContent.startsWith('[') && tagsContent.endsWith(']')) {
+          // Inline array format: tags: [tag1, tag2]
+          const inlineArray = tagsContent.slice(1, -1).split(',');
+          inlineArray.forEach(tag => {
+            const trimmedTag = tag.trim();
+            if (trimmedTag) tags.push(trimmedTag);
+          });
+        } else {
+          // Single tag or comma-separated format: tags: tag1, tag2
+          tagsContent.split(',').forEach(tag => {
+            const trimmedTag = tag.trim();
+            if (trimmedTag) tags.push(trimmedTag);
+          });
+        }
+      }
+    }
+    
+    // Return unique tags
+    return [...new Set(tags)];
   }
 
   /**
